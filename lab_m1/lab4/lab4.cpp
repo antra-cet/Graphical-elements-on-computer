@@ -48,6 +48,7 @@ void Lab4::Init()
     angularStepOX = 0;
     angularStepOY = 0;
     angularStepOZ = 0;
+    angular = 0;
 
     // Sets the resolution of the small viewport
     glm::ivec2 resolution = window->GetResolution();
@@ -77,10 +78,14 @@ void Lab4::RenderScene() {
     RenderMesh(meshes["box"], shaders["Simple"], modelMatrix);
 
     modelMatrix = glm::mat4(1);
-    modelMatrix *= transform3D::Translate(2.5f, 0.5f, -1.5f);
+    modelMatrix *= transform3D::Translate(0.0f, 0.5f, -1.5f);
+    modelMatrix *= transform3D::RotateOY(angular * 0.01f);
+
+    modelMatrix *= transform3D::Translate(2.5f, 0, 0);
     modelMatrix *= transform3D::RotateOX(angularStepOX);
     modelMatrix *= transform3D::RotateOY(angularStepOY);
     modelMatrix *= transform3D::RotateOZ(angularStepOZ);
+
     RenderMesh(meshes["box"], shaders["VertexNormal"], modelMatrix);
 }
 
@@ -117,29 +122,30 @@ void Lab4::OnInputUpdate(float deltaTime, int mods)
 {
     // TODO(student): Add transformation logic
 
+    if (!window->KeyHold(GLFW_MOUSE_BUTTON_RIGHT)) {
+        if (window->KeyHold(GLFW_KEY_W)) {
+            translateZ -= deltaTime * 50;
+        }
 
-    if (window->KeyHold(GLFW_KEY_W)) {
-        translateZ-= deltaTime;
-    }
+        if (window->KeyHold(GLFW_KEY_S)) {
+            translateZ += deltaTime * 50;
+        }
 
-    if (window->KeyHold(GLFW_KEY_S)) {
-        translateZ+= deltaTime;
-    }
+        if (window->KeyHold(GLFW_KEY_A)) {
+            translateX -= deltaTime * 50;
+        }
 
-    if (window->KeyHold(GLFW_KEY_A)) {
-        translateX-= deltaTime;
-    }
+        if (window->KeyHold(GLFW_KEY_D)) {
+            translateX += deltaTime * 50;
+        }
 
-    if (window->KeyHold(GLFW_KEY_D)) {
-        translateX+= deltaTime;
-    }
+        if (window->KeyHold(GLFW_KEY_R)) {
+            translateY += deltaTime * 50;
+        }
 
-    if (window->KeyHold(GLFW_KEY_R)) {
-        translateY+= deltaTime;
-    }
-
-    if (window->KeyHold(GLFW_KEY_F)) {
-        translateY-= deltaTime;
+        if (window->KeyHold(GLFW_KEY_F)) {
+            translateY -= deltaTime * 50;
+        }
     }
 
     if(window->KeyHold(GLFW_KEY_1)) {
@@ -209,6 +215,14 @@ void Lab4::OnInputUpdate(float deltaTime, int mods)
 
         miniViewportArea.x += deltaTime * 50 / 2;
         miniViewportArea.y += deltaTime * 50 / 2;
+    }
+
+    if (window->KeyHold(GLFW_KEY_UP)) {
+        angular++;
+    }
+
+    if (window->KeyHold(GLFW_KEY_DOWN)) {
+        angular--;
     }
 }
 
