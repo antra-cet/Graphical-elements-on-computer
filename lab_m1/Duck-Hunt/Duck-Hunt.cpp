@@ -13,7 +13,6 @@
 using namespace std;
 using namespace m1;
 
-
 void Duck_Hunt::Init()
 {
     // Changing the resolution
@@ -54,6 +53,18 @@ void Duck_Hunt::FrameStart()
 }
 
 void Duck_Hunt::UpdateAlive(float deltaTimeSeconds) {
+    // Draw the score
+    modelMatrix = glm::mat3(1);
+    modelMatrix *= transform2D::Translate(1000, 650);
+
+    RenderMesh2D(meshes["score-wireframe"], shaders["VertexColor"], modelMatrix);
+
+    modelMatrix = glm::mat3(1);
+    modelMatrix *= transform2D::Translate(1000, 650);
+    modelMatrix *= transform2D::Scale(duck.score, 1);
+
+    RenderMesh2D(meshes["score"], shaders["VertexColor"], modelMatrix);
+
     // Draw number of lives
     for (int i = 0; i < duck.lives; i++) {
         modelMatrix = glm::mat3(1);
@@ -94,10 +105,6 @@ void Duck_Hunt::UpdateAlive(float deltaTimeSeconds) {
     RenderMesh2D(meshes["beak"], shaders["VertexColor"], modelMatrix);
 
     modelMatrix = glm::mat3(1);
-    modelMatrix *= transform2D::Translate(duck.translateDuck.x, duck.translateDuck.y);
-    RenderMesh2D(meshes["duck-wireframe"], shaders["VertexColor"], modelMatrix);
-
-    modelMatrix = glm::mat3(1);
     modelMatrix *= transform2D::Translate(duck.wingMove.moveWing1.x + duck.translateDuck.x, duck.translateDuck.y);
     modelMatrix *= transform2D::Rotate(duck.angle * twicePI / 360);
 
@@ -126,17 +133,6 @@ void Duck_Hunt::Update(float deltaTimeSeconds)
     modelMatrix = glm::mat3(1);
     RenderMesh2D(meshes["ground"], shaders["VertexColor"], modelMatrix);
 
-    modelMatrix = glm::mat3(1);
-    modelMatrix *= transform2D::Translate(1000, 650);
-
-    RenderMesh2D(meshes["score-wireframe"], shaders["VertexColor"], modelMatrix);
-
-    modelMatrix = glm::mat3(1);
-    modelMatrix *= transform2D::Translate(1000, 650);
-    modelMatrix *= transform2D::Scale(duck.score, 1);
-
-    RenderMesh2D(meshes["score"], shaders["VertexColor"], modelMatrix);
-
     if (duck.score > MAX_SCORE) {
         // Create tick for winning
 
@@ -163,13 +159,13 @@ void Duck_Hunt::Update(float deltaTimeSeconds)
             modelMatrix *= transform2D::Translate(lastResolution.x / 2, LOWER_BOUND_Y + (lastResolution.y - LOWER_BOUND_Y) / 2);
             modelMatrix *= transform2D::Rotate(45 * twicePI / 360);
 
-            RenderMesh2D(meshes["v-rectangle"], shaders["VertexColor"], modelMatrix);
+            RenderMesh2D(meshes["x-rectangle"], shaders["VertexColor"], modelMatrix);
 
             modelMatrix = glm::mat3(1);
             modelMatrix *= transform2D::Translate(lastResolution.x / 2, LOWER_BOUND_Y + (lastResolution.y - LOWER_BOUND_Y) / 2);
             modelMatrix *= transform2D::Rotate((-45) * twicePI / 360);
 
-            RenderMesh2D(meshes["v-rectangle"], shaders["VertexColor"], modelMatrix);
+            RenderMesh2D(meshes["x-rectangle"], shaders["VertexColor"], modelMatrix);
         }
     }
 }

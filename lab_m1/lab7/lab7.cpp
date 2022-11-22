@@ -80,7 +80,7 @@ void Lab7::Update(float deltaTimeSeconds)
     {
         glm::mat4 modelMatrix = glm::mat4(1);
         modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 1, 0));
-        RenderSimpleMesh(meshes["sphere"], shaders["LabShader"], modelMatrix);
+        RenderSimpleMesh(meshes["sphere"], shaders["LabShader"], modelMatrix, glm::vec3(0, 0, 1));
     }
 
     {
@@ -132,11 +132,26 @@ void Lab7::RenderSimpleMesh(Mesh *mesh, Shader *shader, const glm::mat4 & modelM
 
     // Set shader uniforms for light & material properties
     // TODO(student): Set light position uniform
+    GLint loc_light_position = glGetUniformLocation(shader->program, "light_position");
+    glUniform3fv(loc_light_position, 1, glm::value_ptr(lightPosition));
 
     glm::vec3 eyePosition = GetSceneCamera()->m_transform->GetWorldPosition();
     // TODO(student): Set eye position (camera position) uniform
+    GLint loc_eye_position = glGetUniformLocation(shader->program, "eye_position");
+    glUniform3fv(loc_eye_position, 1, glm::value_ptr(eyePosition));
 
     // TODO(student): Set material property uniforms (shininess, kd, ks, object color)
+    GLint material_property = glGetUniformLocation(shader->program, "material_shininess");
+    glUniform1i(material_property, materialShininess);
+
+    material_property = glGetUniformLocation(shader->program, "material_kd");
+    glUniform1f(material_property, materialKd);
+
+    material_property = glGetUniformLocation(shader->program, "material_ks");
+    glUniform1f(material_property, materialKs);
+
+    material_property = glGetUniformLocation(shader->program, "object_color");
+    glUniform3fv(material_property, 1, glm::value_ptr(color));
 
     // Bind model matrix
     GLint loc_model_matrix = glGetUniformLocation(shader->program, "Model");

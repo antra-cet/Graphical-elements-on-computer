@@ -199,21 +199,21 @@ namespace duckShapes {
             "duck_body", "created the body of the duck", meshes);
         
         // Draw the wings of the duck
-        CreateTriangle(VertexFormat(glm::vec3(-30, 50, 0), glm::vec3(0.2, 0.1, 0), glm::vec3(2, 8, 6)),
-            VertexFormat(glm::vec3(-30, 5, 0), glm::vec3(0.4, 0.2, 0), glm::vec3(2, 8, 6)),
-            VertexFormat(glm::vec3(0, 5, 0), glm::vec3(0.4, 0.2, 0), glm::vec3(2, 8, 6)),
+        CreateTriangle(VertexFormat(glm::vec3(-30, 50, 0), glm::vec3(0.2, 0.1, 0)),
+            VertexFormat(glm::vec3(-30, 5, 0), glm::vec3(0.4, 0.2, 0)),
+            VertexFormat(glm::vec3(0, 5, 0), glm::vec3(0.4, 0.2, 0)),
             "duck_wing1", "created the wing1 of the duck", meshes);
 
-        CreateTriangle(VertexFormat(glm::vec3(-30, -50, 0), glm::vec3(0.4, 0.2, 0), glm::vec3(2, 8, 6)),
-            VertexFormat(glm::vec3(-30, -5, 0), glm::vec3(0.2, 0.1, 0), glm::vec3(2, 8, 6)),
-            VertexFormat(glm::vec3(0, -5, 0), glm::vec3(0.2, 0.1, 0), glm::vec3(2, 8, 6)),
+        CreateTriangle(VertexFormat(glm::vec3(-30, -50, 0), glm::vec3(0.4, 0.2, 0)),
+            VertexFormat(glm::vec3(-30, -5, 0), glm::vec3(0.2, 0.1, 0)),
+            VertexFormat(glm::vec3(0, -5, 0), glm::vec3(0.2, 0.1, 0)),
             "duck_wing2", "created the wing2 of the duck", meshes);
 
         
         // Draw the beak of the duck
-        CreateTriangle(VertexFormat(glm::vec3(60, 20, 0), glm::vec3(0.9, 0.9, 0), glm::vec3(2, 8, 6)),
-            VertexFormat(glm::vec3(100, 0, 0), glm::vec3(0.9, 0.9, 0), glm::vec3(2, 8, 6)),
-            VertexFormat(glm::vec3(60, -20, 0), glm::vec3(0.9, 0.9, 0), glm::vec3(2, 8, 6)),
+        CreateTriangle(VertexFormat(glm::vec3(60, 20, 0), glm::vec3(0.9, 0.9, 0)),
+            VertexFormat(glm::vec3(100, 0, 0), glm::vec3(0.9, 0.9, 0)),
+            VertexFormat(glm::vec3(60, -20, 0), glm::vec3(0.9, 0.9, 0)),
             "beak", "created the beak of the duck", meshes);
 
         // Draw the hearts - circles
