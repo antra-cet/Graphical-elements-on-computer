@@ -11,3 +11,4 @@
 #include "lab_m1/lab8/lab8.h"
 #include "lab_m1/lab9/lab9.h"
 #include "lab_m1/Duck-Hunt/Duck-Hunt.h"
+#include "lab_m1/Car-Race/Car_Race.h"

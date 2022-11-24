@@ -13,6 +13,7 @@
 using namespace std;
 using namespace m1;
 
+
 void Duck_Hunt::Init()
 {
     // Changing the resolution
