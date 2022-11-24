@@ -1,3 +1,4 @@
 # Graphical-elements-on-computer laboratories
 
-Used the OpenGL framework to create the programs.
+Used the OpenGL framework to create the programs and games
+
