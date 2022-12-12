@@ -1,4 +1,7 @@
 #include "lab_m1/Car-Race/Car_Race.h"
+#include "lab_m1/Car-Race/CarShapes.h"
+#include "lab_m1/Car-Race/transform3D.h"
+
 
 #include <vector>
 #include <string>
@@ -6,12 +9,6 @@
 
 using namespace std;
 using namespace m1;
-
-
-/*
- *  To find out more about `FrameStart`, `Update`, `FrameEnd`
- *  and the order in which they are called, see `world.cpp`.
- */
 
 
 Car_Race::Car_Race()
@@ -29,24 +26,44 @@ void Car_Race::Init()
     renderCameraTarget = false;
 
     camera = new implemented::Camera();
-    camera->Set(glm::vec3(0, 2, 3.5f), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
+    camera->Set(glm::vec3(0, 3, 3.5f), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
 
+    // car
     {
         Mesh* mesh = new Mesh("car");
-        mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "props"), "BMW.obj");
+        mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "props"), "audi.mtl.obj");
         meshes[mesh->GetMeshID()] = mesh;
     }
 
-    {
-        Mesh* mesh = new Mesh("box");
-        mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "primitives"), "box.obj");
-        meshes[mesh->GetMeshID()] = mesh;
-    }
-
+    // sphere
     {
         Mesh* mesh = new Mesh("sphere");
         mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "primitives"), "sphere.obj");
         meshes[mesh->GetMeshID()] = mesh;
+    }
+
+    // road
+    {
+        Mesh *mesh = carShapes::CreateRoad();
+        meshes[mesh->GetMeshID()] = mesh;
+    }
+
+
+    // Create a shader program for drawing face polygon with the color of the normal
+    {
+        Shader* shader = new Shader("CarShader");
+        shader->AddShader(PATH_JOIN(window->props.selfDir, SOURCE_PATH::M1, "Car-Race", "shaders", "VertexShader.glsl"), GL_VERTEX_SHADER);
+        shader->AddShader(PATH_JOIN(window->props.selfDir, SOURCE_PATH::M1, "Car-Race", "shaders", "FragmentShader.glsl"), GL_FRAGMENT_SHADER);
+        shader->CreateAndLink();
+        shaders[shader->GetName()] = shader;
+    }
+
+    // Light & material properties
+    {
+        lightPosition = glm::vec3(0, 1, 1);
+        car.materialShininess = 30;
+        car.materialKd = 0.5;
+        car.materialKs = 0.5;
     }
 
     // TODO(student): After you implement the changing of the projection
@@ -56,18 +73,16 @@ void Car_Race::Init()
     width = 10;
 
     // Initialize my variables
-    car.translate.z = -10.0f;
-    car.translate.y = -1.0f;
-    car.translate.x = 13.2f;
 
-    car.rotateAngle = -90.0f;
+    // Initialize the car's starting point
+    car.angle = 0;
 }
 
 
 void Car_Race::FrameStart()
 {
     // Clears the color buffer (using the previously set color) and depth buffer
-    glClearColor(0, 0, 0, 1);
+    glClearColor(0.62, 0.92, 0.9, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glm::ivec2 resolution = window->GetResolution();
@@ -78,56 +93,35 @@ void Car_Race::FrameStart()
 
 void Car_Race::Update(float deltaTimeSeconds)
 {
+    // car
     {
         glm::mat4 modelMatrix = glm::mat4(1);
-        modelMatrix = glm::rotate(modelMatrix, RADIANS(car.rotateAngle), glm::vec3(0, 1, 0));
-        modelMatrix = glm::translate(modelMatrix, glm::vec3(car.translate.z, car.translate.y, car.translate.x));
+        glm::vec3 cameraPosition;
+        cameraPosition.x = camera->GetTargetPosition().x;
+        cameraPosition.y = camera->GetTargetPosition().y;
+        cameraPosition.z = camera->GetTargetPosition().z + CAR_START_POINT_Z;
 
-        SimpleScene::RenderMesh(meshes["car"], shaders["Color"], modelMatrix);
+        modelMatrix *= transform3D::Translate(camera->GetTargetPosition().x, camera->GetTargetPosition().y - CAR_START_POINT_Y, camera->GetTargetPosition().z - CAR_START_POINT_Z);
+        modelMatrix *= transform3D::Scale(0.5, 0.5, 0.5);
+        modelMatrix *= transform3D::RotateOY(car.angle);
+        RenderMesh(meshes["car"], shaders["VertexNormal"], modelMatrix);
     }
 
-    //{
-    //    glm::mat4 modelMatrix = glm::mat4(1);
-    //    modelMatrix = glm::translate(modelMatrix, glm::vec3(2, 0.5f, 0));
-    //    modelMatrix = glm::rotate(modelMatrix, RADIANS(60.0f), glm::vec3(1, 0, 0));
-    //    RenderMesh(meshes["box"], shaders["VertexNormal"], modelMatrix);
-    //}
-
-    //{
-    //    glm::mat4 modelMatrix = glm::mat4(1);
-    //    modelMatrix = glm::translate(modelMatrix, glm::vec3(-2, 0.5f, 0));
-    //    RenderMesh(meshes["box"], shaders["Simple"], modelMatrix);
-    //}
-
-    // TODO(student): Draw more objects with different model matrices.
-    // Attention! The `RenderMesh()` function overrides the usual
-    // `RenderMesh()` that we've been using up until now. This new
-    // function uses the view matrix from the camera that you just
-    // implemented, and the local projection matrix.
-
-    //{
-    //    glm::mat4 modelMatrix = glm::mat4(1);
-    //    modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 3, 1));
-    //    modelMatrix = glm::rotate(modelMatrix, RADIANS(-25.0f), glm::vec3(0, 2.0f, 0));
-    //    RenderMesh(meshes["box"], shaders["Simple"], modelMatrix);
-    //}
-
-    //{
-    //    glm::mat4 modelMatrix = glm::mat4(1);
-    //    modelMatrix = glm::translate(modelMatrix, glm::vec3(0, -3, 1));
-    //    modelMatrix = glm::rotate(modelMatrix, RADIANS(25.0f), glm::vec3(0, 4.0f, 0));
-    //    RenderMesh(meshes["box"], shaders["Simple"], modelMatrix);
-    //}
-
-    // Render the camera target. This is useful for understanding where
-    // the rotation point is, when moving in third-person camera mode.
-    if (renderCameraTarget)
+    // road
     {
         glm::mat4 modelMatrix = glm::mat4(1);
-        modelMatrix = glm::translate(modelMatrix, camera->GetTargetPosition());
-        modelMatrix = glm::scale(modelMatrix, glm::vec3(0.1f));
-        RenderMesh(meshes["sphere"], shaders["Color"], modelMatrix);
+
+        RenderMesh(meshes["road"], shaders["Color"], modelMatrix);
     }
+
+    // sun
+    //{
+    //    glm::mat4 modelMatrix = glm::mat4(1);
+    //    modelMatrix = glm::scale(modelMatrix, glm::vec3(20, 20, 20));
+    //    modelMatrix = glm::translate(modelMatrix, glm::vec3(lightPosition.x, lightPosition.y, lightPosition.z));
+
+    //    RenderMesh(meshes["sphere"], shaders["Simple"], modelMatrix);
+    //}
 }
 
 
@@ -151,122 +145,52 @@ void Car_Race::RenderMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatr
     mesh->Render();
 }
 
-
-void Car_Race::RenderSimpleMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatrix, const glm::vec3& color)
-{
-    if (!mesh || !shader || !shader->GetProgramID())
-        return;
-
-    // Render an object using the specified shader and the specified position
-    glUseProgram(shader->program);
-
-    // Set shader uniforms for light & material properties
-    // TODO(student): Set light position uniform
-    GLint loc_light_position = glGetUniformLocation(shader->program, "light_position");
-    glUniform3fv(loc_light_position, 1, glm::value_ptr(lightPosition));
-
-    glm::vec3 eyePosition = GetSceneCamera()->m_transform->GetWorldPosition();
-    // TODO(student): Set eye position (camera position) uniform
-    GLint loc_eye_position = glGetUniformLocation(shader->program, "eye_position");
-    glUniform3fv(loc_eye_position, 1, glm::value_ptr(eyePosition));
-
-    // TODO(student): Set material property uniforms (shininess, kd, ks, object color)
-    GLint material_property = glGetUniformLocation(shader->program, "material_shininess");
-    glUniform1i(material_property, materialShininess);
-
-    material_property = glGetUniformLocation(shader->program, "material_kd");
-    glUniform1f(material_property, materialKd);
-
-    material_property = glGetUniformLocation(shader->program, "material_ks");
-    glUniform1f(material_property, materialKs);
-
-    material_property = glGetUniformLocation(shader->program, "object_color");
-    glUniform3fv(material_property, 1, glm::value_ptr(color));
-
-    // Bind model matrix
-    GLint loc_model_matrix = glGetUniformLocation(shader->program, "Model");
-    glUniformMatrix4fv(loc_model_matrix, 1, GL_FALSE, glm::value_ptr(modelMatrix));
-
-    // Bind view matrix
-    glm::mat4 viewMatrix = GetSceneCamera()->GetViewMatrix();
-    int loc_view_matrix = glGetUniformLocation(shader->program, "View");
-    glUniformMatrix4fv(loc_view_matrix, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-
-    // Bind projection matrix
-    glm::mat4 projectionMatrix = GetSceneCamera()->GetProjectionMatrix();
-    int loc_projection_matrix = glGetUniformLocation(shader->program, "Projection");
-    glUniformMatrix4fv(loc_projection_matrix, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
-
-    // Draw the object
-    glBindVertexArray(mesh->GetBuffers()->m_VAO);
-    glDrawElements(mesh->GetDrawMode(), static_cast<int>(mesh->indices.size()), GL_UNSIGNED_INT, 0);
-}
-
-
-
-/*
- *  These are callback functions. To find more about callbacks and
- *  how they behave, see `input_controller.h`.
- */
-
-
 void Car_Race::OnInputUpdate(float deltaTime, int mods)
 {
-    // move the camera only if MOUSE_RIGHT button is pressed
-    if (true)
-    {
-        float cameraSpeed = 4.0f;
-        float cameraRotation = 1.0f;
+    float cameraSpeed = 10.0f;
+    float cameraRotation = 1.0f;
 
-        // Translate forward
-        if (window->KeyHold(GLFW_KEY_W)) {
-            camera->TranslateForward(cameraSpeed * deltaTime);
-            car.translate.z -= cameraSpeed * deltaTime * 0.005;
-        }
-
-        if (window->KeyHold(GLFW_KEY_A)) {
-            // TODO(student): Translate the camera to the left
-            camera->RotateThirdPerson_OY(cameraRotation * deltaTime);
-            car.rotateAngle -= cameraRotation * deltaTime ;
-        }
-
-        // Translate backward
-        if (window->KeyHold(GLFW_KEY_S)) {
-            camera->TranslateForward(-cameraSpeed * deltaTime);
-            car.translate.z += cameraSpeed * deltaTime * 0.005;
-        }
-
-        if (window->KeyHold(GLFW_KEY_D)) {
-            // TODO(student): Translate the camera to the right
-            camera->RotateThirdPerson_OY(-cameraRotation * deltaTime);
-            car.rotateAngle += cameraRotation * deltaTime;
-        }
+    // Translate forward
+    if (window->KeyHold(GLFW_KEY_W)) {
+        camera->MoveForward(cameraSpeed * deltaTime);
     }
 
-    // TODO(student): Change projection parameters. Declare any extra
-    // variables you might need in the class header. Inspect this file
-    // for any hardcoded projection arguments (can you find any?) and
-    // replace them with those extra variables.
+    // Translate backward
+    if (window->KeyHold(GLFW_KEY_S)) {
+        camera->MoveForward(-cameraSpeed * deltaTime);
+    }
+
+    // Translate left
+    if (window->KeyHold(GLFW_KEY_A)) {
+        camera->RotateThirdPerson_OY(cameraRotation * deltaTime);
+
+        // Rotate car left
+        car.angle += cameraRotation * deltaTime;
+    }
+
+    // Translate right
+    if (window->KeyHold(GLFW_KEY_D)) {
+        camera->RotateThirdPerson_OY(-cameraRotation * deltaTime);
+
+        // Rotate car right
+        car.angle -= cameraRotation * deltaTime;
+    }
+
+
+    // TODO : delete translate camera upward and downward
+    if (window->KeyHold(GLFW_KEY_Q)) {
+        camera->TranslateUpward(-cameraSpeed * deltaTime);
+    }
+    
+    if (window->KeyHold(GLFW_KEY_E)) {
+        camera->TranslateUpward(cameraSpeed * deltaTime);
+    }
 }
 
 
 void Car_Race::OnKeyPress(int key, int mods)
 {
     // Add key press event
-    if (key == GLFW_KEY_T)
-    {
-        renderCameraTarget = !renderCameraTarget;
-    }
-    // TODO(student): Switch projections
-    if (key == GLFW_KEY_O)
-    {
-        height = ((float)window->GetResolution().y / window->GetResolution().x) * width;
-        projectionMatrix = glm::ortho(-width, width, -height, height, -10.0f, 10.0f);
-    }
-    if (key == GLFW_KEY_P)
-    {
-        projectionMatrix = glm::perspective(fov, window->props.aspectRatio, 0.01f, 200.0f);
-    }
 }
 
 
@@ -280,25 +204,19 @@ void Car_Race::OnMouseMove(int mouseX, int mouseY, int deltaX, int deltaY)
 {
     // Add mouse move event
 
-    if (window->MouseHold(GLFW_MOUSE_BUTTON_RIGHT))
+        if (window->MouseHold(GLFW_MOUSE_BUTTON_RIGHT))
     {
         float sensivityOX = 0.001f;
         float sensivityOY = 0.001f;
 
         if (window->GetSpecialKeyState() == 0) {
             renderCameraTarget = false;
-            // TODO(student): Rotate the camera in first-person mode around
-            // OX and OY using `deltaX` and `deltaY`. Use the sensitivity
-            // variables for setting up the rotation speed.
             camera->RotateFirstPerson_OY(-deltaX * sensivityOX);
             camera->RotateFirstPerson_OX(-deltaY * sensivityOY);
         }
 
         if (window->GetSpecialKeyState() & GLFW_MOD_CONTROL) {
             renderCameraTarget = true;
-            // TODO(student): Rotate the camera in third-person mode around
-            // OX and OY using `deltaX` and `deltaY`. Use the sensitivity
-            // variables for setting up the rotation speed.
             camera->RotateThirdPerson_OY(-deltaX * sensivityOX);
             camera->RotateThirdPerson_OX(-deltaY * sensivityOY);
         }

@@ -21,8 +21,7 @@ namespace m1
         void Update(float deltaTimeSeconds) override;
         void FrameEnd() override;
 
-        void RenderMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatrix) override;
-        void RenderSimpleMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatrix, const glm::vec3& color = glm::vec3(1));
+        void RenderMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatrix);
 
         void OnInputUpdate(float deltaTime, int mods) override;
         void OnKeyPress(int key, int mods) override;
