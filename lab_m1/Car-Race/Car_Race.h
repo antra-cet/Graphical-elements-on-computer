@@ -34,7 +34,6 @@ namespace m1
         void OnWindowResize(int width, int height) override;
 
     protected:
-        implemented::Camera* carCamera, *miniMapCamera;
         glm::mat4 projectionMatrix;
         bool renderCameraTarget;
 
@@ -50,8 +49,10 @@ namespace m1
 
 
         // MINE
+        implemented::Camera* carCamera, * miniMapCamera;
+
         Car_Utils::car car;
-        Car_Utils::road road;
         std::vector<glm::vec3> trees;
+        std::vector<glm::vec3> roadTriangles;
     };
 }   // namespace m1

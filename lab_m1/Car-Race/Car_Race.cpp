@@ -51,13 +51,11 @@ void Car_Race::Init()
         meshes[mesh->GetMeshID()] = mesh;
     }
 
-
     // earth
     {
         Mesh* mesh = Car_Shapes::CreateGrass();
         meshes[mesh->GetMeshID()] = mesh;
     }
-
 
     // tree
     {
@@ -89,8 +87,14 @@ void Car_Race::Init()
     fov = RADIANS(60);
     width = 10;
 
+
+
+
+    // Initialize the triangles of the road
+    roadTriangles = Car_Shapes::CreateTrainglePoints(Car_Shapes::getTrackPoints(), ROAD_DISTANCE);
+
     // Initialize the tree points
-    trees = Car_Shapes::CreateTreePoints();
+    trees = Car_Shapes::CreateTreePoints(roadTriangles);
 
     // Initialize the car's starting point
     car.angle = 0;
@@ -108,8 +112,8 @@ void Car_Race::FrameStart()
     glViewport(0, 0, resolution.x, resolution.y);
 }
 
-void Car_Race::RenderScene() {
-
+void Car_Race::RenderScene()
+{
     // car
     {
         car.translate = carCamera->GetTargetPosition();
@@ -125,11 +129,11 @@ void Car_Race::RenderScene() {
 
     // tree
     {
-        for (int i = 0; i < NUM_TREES; i++) {
+        for (int i = 0; i < trees.size(); i++) {
             glm::vec3 translateTree;
-            translateTree.x = trees.at(i).x;
+            translateTree.x = trees[i].x;
             translateTree.y = 0;
-            translateTree.z = trees.at(i).z;
+            translateTree.z = trees[i].z;
 
             glm::mat4 modelMatrix = glm::mat4(1);
             modelMatrix *= transform3D::Translate(translateTree.x, translateTree.y, translateTree.z);

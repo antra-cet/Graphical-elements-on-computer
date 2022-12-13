@@ -1,7 +1,7 @@
+#include "lab_m1/Car-Race/Car_Race.h"
 #include "lab_m1/Car-Race/CarUtils.h"
 
 namespace Car_Shapes {
-
     inline void CreateMesh(const char* name,
         const std::vector<VertexFormat>& vertices,
         const std::vector<unsigned int>& indices,
@@ -126,7 +126,50 @@ namespace Car_Shapes {
         return skelPoints;
     }
 
-    inline std::vector<VertexFormat> CreateRoadVertices (std::vector<glm::vec3> skelPoints, float distance) {
+    inline std::vector<glm::vec3> CreateTrainglePoints(std::vector<glm::vec3> skelPoints, float distance) {
+        std::vector<glm::vec3> trianglePoints;
+
+        glm::vec3 v1, v2;
+        glm::vec3 d, p;
+        glm::vec3 red, blue;
+
+        for (int i = 0; i < skelPoints.size(); i++) {
+            if (i == skelPoints.size() - 1) {
+                // Adding the last vertice
+                v1 = skelPoints[skelPoints.size() - 1];
+                v2 = skelPoints[0];
+
+                d = v2 - v1;
+                d = glm::normalize(d);
+                p = glm::cross(d, glm::vec3(0, 1, 0));
+
+                red = v1 + distance * p;
+                blue = v1 - distance * p;
+                trianglePoints.push_back(red);
+                trianglePoints.push_back(blue);
+
+                break;
+            }
+
+
+            // Adding the rest of the vertices
+            v1 = skelPoints[i];
+            v2 = skelPoints[i + 1];
+
+            d = v2 - v1;
+            d = glm::normalize(d);
+            p = glm::cross(d, glm::vec3(0, 1, 0));
+
+            red = v1 + distance * p;
+            blue = v1 - distance * p;
+            trianglePoints.push_back(red);
+            trianglePoints.push_back(blue);
+        }
+
+        return trianglePoints;
+    }
+
+    inline std::vector<VertexFormat> CreateRoadVertices (std::vector<glm::vec3> skelPoints, float distance, glm::vec3 roadColor) {
         std::vector<VertexFormat> vertices;
 
         glm::vec3 v1, v2;
@@ -145,8 +188,8 @@ namespace Car_Shapes {
 
                 red = v1 + distance * p;
                 blue = v1 - distance * p;
-                vertices.push_back(red);
-                vertices.push_back(blue);
+                vertices.push_back(VertexFormat(red, roadColor));
+                vertices.push_back(VertexFormat(blue, roadColor));
 
                 break;
             }
@@ -162,8 +205,8 @@ namespace Car_Shapes {
 
             red = v1 + distance * p;
             blue = v1 - distance * p;
-            vertices.push_back(red);
-            vertices.push_back(blue);
+            vertices.push_back(VertexFormat(red, roadColor));
+            vertices.push_back(VertexFormat(blue, roadColor));
         }
 
         return vertices;
@@ -189,12 +232,12 @@ namespace Car_Shapes {
                 indices.push_back(index + 1);
                 indices.push_back(index);
 
-                // The first triangle
+                // The third triangle
                 indices.push_back(index);
                 indices.push_back(index + 1);
                 indices.push_back(0);
 
-                // The second triangle
+                // The fourth triangle
                 indices.push_back(index + 1);
                 indices.push_back(1);
                 indices.push_back(0);
@@ -221,13 +264,12 @@ namespace Car_Shapes {
     }
 
     inline Mesh *CreateRoad() {
-        float distance = ROAD_DISTANCE;
         glm::vec3 normal = glm::vec3(1, 1, 1);
-        glm::vec3 roadColor = glm::vec3(0.01, 0.01, 0.01);
+        glm::vec3 roadColor = glm::vec3(0.8, 0.8, 0.8);
 
         std::vector<glm::vec3> skelPoints = getTrackPoints();
-        std::vector<VertexFormat> vertices = CreateRoadVertices(skelPoints, distance);
-        std::vector<unsigned int> indices = CreateRoadIndices(skelPoints, distance);
+        std::vector<VertexFormat> vertices = CreateRoadVertices(skelPoints, ROAD_DISTANCE, roadColor);
+        std::vector<unsigned int> indices = CreateRoadIndices(skelPoints, ROAD_DISTANCE);
 
         Mesh* mesh = new Mesh("road");
         mesh->InitFromData(vertices, indices);
@@ -235,26 +277,8 @@ namespace Car_Shapes {
         return mesh;
 	}
 
-    inline bool isOnTrack(glm::vec3 point) {
-        bool found = 0;
-
-        std::vector<glm::vec3> skelPoints = getTrackPoints();
-
-        for (int i = 0; i < skelPoints.size(); i++) {
-            if (i == skelPoints.size() - 1) {
-
-                break;
-            }
-
-            glm::vec3 point1, point2, point3;
-        }
-
-        return found;
-    }
-
-    inline std::vector<glm::vec3> CreateTreePoints() {
+    inline std::vector<glm::vec3> CreateTreePoints(std::vector<glm::vec3> roadTriangles) {
         std::vector<glm::vec3> treePoints;
-
         for (int i = 0; i < NUM_TREES; i++) {
             int x = rand() % 400;
             int sgnX = rand() % 2;
@@ -266,7 +290,7 @@ namespace Car_Shapes {
             sgnZ = (sgnZ == 0) ? 1 : -1;
             z *= sgnZ;
 
-            if (!isOnTrack(glm::vec3(x, 0, z))) {
+            if (!m1::isOnTrack(glm::vec3(x, 0, z), roadTriangles)) {
                 treePoints.push_back(glm::vec3(x, 0, z));
             }
         }
