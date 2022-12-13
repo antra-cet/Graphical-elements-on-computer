@@ -97,6 +97,9 @@ void Lab9::Init()
         vector<glm::vec2> textureCoords
         {
             // TODO(student): Complete texture coordinates for the square
+            glm::vec2(1.0f, 0.0f),
+            glm::vec2(1.0f, 1.0f),
+            glm::vec2(0.0f, 1.0f),
             glm::vec2(0.0f, 0.0f)
 
         };
@@ -114,7 +117,7 @@ void Lab9::Init()
 
     // Create a shader program for drawing face polygon with the color of the normal
     {
-        Shader *shader = new Shader("LabShader");
+        Shader* shader = new Shader("LabShader");
         shader->AddShader(PATH_JOIN(window->props.selfDir, SOURCE_PATH::M1, "lab9", "shaders", "VertexShader.glsl"), GL_VERTEX_SHADER);
         shader->AddShader(PATH_JOIN(window->props.selfDir, SOURCE_PATH::M1, "lab9", "shaders", "FragmentShader.glsl"), GL_FRAGMENT_SHADER);
         shader->CreateAndLink();
@@ -177,6 +180,15 @@ void Lab9::Update(float deltaTimeSeconds)
     }
 
     {
+        mixer = 1;
+        glm::mat4 modelMatrix = glm::mat4(1);
+        modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.5f, 1.0f));
+        modelMatrix = glm::scale(modelMatrix, glm::vec3(0.5f));
+        RenderSimpleMesh(meshes["square"], shaders["LabShader"], modelMatrix, mapTextures["grass"], mapTextures["random"]);
+        mixer = 0;
+    }
+
+    {
         glm::mat4 modelMatrix = glm::mat4(1);
         modelMatrix = glm::translate(modelMatrix, glm::vec3(-2, -0.5f, -3));
         modelMatrix = glm::scale(modelMatrix, glm::vec3(0.1f));
@@ -191,7 +203,7 @@ void Lab9::FrameEnd()
 }
 
 
-void Lab9::RenderSimpleMesh(Mesh *mesh, Shader *shader, const glm::mat4 & modelMatrix, Texture2D* texture1, Texture2D* texture2)
+void Lab9::RenderSimpleMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatrix, Texture2D* texture1, Texture2D* texture2)
 {
     if (!mesh || !shader || !shader->GetProgramID())
         return;
@@ -214,6 +226,15 @@ void Lab9::RenderSimpleMesh(Mesh *mesh, Shader *shader, const glm::mat4 & modelM
     glUniformMatrix4fv(loc_projection_matrix, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 
     // TODO(student): Set any other shader uniforms that you need
+    int loc_time = glGetUniformLocation(shader->program, "time");
+    int loc_mix = glGetUniformLocation(shader->program, "mixer");
+    glUniform1i(loc_mix, mixer);
+
+
+    if (mesh == meshes["sphere"])
+        glUniform1f(loc_time, (float)Engine::GetElapsedTime());
+    else
+        glUniform1f(loc_time, -1.0f);
 
     if (texture1)
     {
@@ -221,7 +242,9 @@ void Lab9::RenderSimpleMesh(Mesh *mesh, Shader *shader, const glm::mat4 & modelM
         // - activate texture location 0
         // - bind the texture1 ID
         // - send theuniform value
-
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture1->GetTextureID());
+        glUniform1i(glGetUniformLocation(shader->GetProgramID(), "texture_1"), 0);
     }
 
     if (texture2)
@@ -230,6 +253,9 @@ void Lab9::RenderSimpleMesh(Mesh *mesh, Shader *shader, const glm::mat4 & modelM
         // - activate texture location 1
         // - bind the texture2 ID
         // - send the uniform value
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, texture2->GetTextureID());
+        glUniform1i(glGetUniformLocation(shader->GetProgramID(), "texture_2"), 1);
 
     }
 
@@ -247,13 +273,23 @@ Texture2D* Lab9::CreateRandomTexture(unsigned int width, unsigned int height)
     unsigned char* data = new unsigned char[size];
 
     // TODO(student): Generate random texture data
+    for (int i = 0; i < size; i++) {
+        data[i] = rand();
+    }
 
     // TODO(student): Generate and bind the new texture ID
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
 
     if (GLEW_EXT_texture_filter_anisotropic) {
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 4);
     }
     // TODO(student): Set the texture parameters (MIN_FILTER, MAG_FILTER and WRAPPING MODE) using glTexParameteri
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
 
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     CheckOpenGLError();
@@ -262,6 +298,7 @@ Texture2D* Lab9::CreateRandomTexture(unsigned int width, unsigned int height)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
 
     // TODO(student): Generate texture mip-maps
+    glGenerateMipmap(GL_TEXTURE_2D);
 
     CheckOpenGLError();
 

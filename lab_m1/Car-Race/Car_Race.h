@@ -18,6 +18,7 @@ namespace m1
 
     private:
         void FrameStart() override;
+        void RenderScene();
         void Update(float deltaTimeSeconds) override;
         void FrameEnd() override;
 
@@ -33,7 +34,7 @@ namespace m1
         void OnWindowResize(int width, int height) override;
 
     protected:
-        implemented::Camera* camera;
+        implemented::Camera* carCamera, *miniMapCamera;
         glm::mat4 projectionMatrix;
         bool renderCameraTarget;
 
@@ -50,5 +51,7 @@ namespace m1
 
         // MINE
         Car_Utils::car car;
+        Car_Utils::road road;
+        std::vector<glm::vec3> trees;
     };
 }   // namespace m1

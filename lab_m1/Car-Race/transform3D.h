@@ -3,8 +3,7 @@
 #include "utils/glm_utils.h"
 
 
-namespace transform3D
-{
+namespace transform3D {
     // Translate matrix
     inline glm::mat4 Translate(float translateX, float translateY, float translateZ)
     {

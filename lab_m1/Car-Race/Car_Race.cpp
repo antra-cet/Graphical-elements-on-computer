@@ -25,8 +25,11 @@ void Car_Race::Init()
 {
     renderCameraTarget = false;
 
-    camera = new implemented::Camera();
-    camera->Set(glm::vec3(0, 3, 3.5f), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
+    carCamera = new implemented::Camera();
+    carCamera->Set(glm::vec3(0, 5, 9.5f), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
+
+    miniMapCamera = new implemented::Camera();
+    miniMapCamera->Set(glm::vec3(0, 100, 0), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
 
     // car
     {
@@ -44,10 +47,24 @@ void Car_Race::Init()
 
     // road
     {
-        Mesh *mesh = carShapes::CreateRoad();
+        Mesh *mesh = Car_Shapes::CreateRoad();
         meshes[mesh->GetMeshID()] = mesh;
     }
 
+
+    // earth
+    {
+        Mesh* mesh = Car_Shapes::CreateGrass();
+        meshes[mesh->GetMeshID()] = mesh;
+    }
+
+
+    // tree
+    {
+        Mesh* mesh = new Mesh("tree");
+        mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "props"), "tree.obj");
+        meshes[mesh->GetMeshID()] = mesh;
+    }
 
     // Create a shader program for drawing face polygon with the color of the normal
     {
@@ -72,7 +89,8 @@ void Car_Race::Init()
     fov = RADIANS(60);
     width = 10;
 
-    // Initialize my variables
+    // Initialize the tree points
+    trees = Car_Shapes::CreateTreePoints();
 
     // Initialize the car's starting point
     car.angle = 0;
@@ -90,44 +108,71 @@ void Car_Race::FrameStart()
     glViewport(0, 0, resolution.x, resolution.y);
 }
 
+void Car_Race::RenderScene() {
 
-void Car_Race::Update(float deltaTimeSeconds)
-{
     // car
     {
-        glm::mat4 modelMatrix = glm::mat4(1);
-        glm::vec3 cameraPosition;
-        cameraPosition.x = camera->GetTargetPosition().x;
-        cameraPosition.y = camera->GetTargetPosition().y;
-        cameraPosition.z = camera->GetTargetPosition().z + CAR_START_POINT_Z;
+        car.translate = carCamera->GetTargetPosition();
+        car.translate.y -= 1.5;
 
-        modelMatrix *= transform3D::Translate(camera->GetTargetPosition().x, camera->GetTargetPosition().y - CAR_START_POINT_Y, camera->GetTargetPosition().z - CAR_START_POINT_Z);
-        modelMatrix *= transform3D::Scale(0.5, 0.5, 0.5);
+        glm::mat4 modelMatrix = glm::mat4(1);
+        modelMatrix *= transform3D::Translate(car.translate.x, car.translate.y, car.translate.z);
+        modelMatrix *= transform3D::Scale(CAR_SCALE, CAR_SCALE, CAR_SCALE);
         modelMatrix *= transform3D::RotateOY(car.angle);
+
         RenderMesh(meshes["car"], shaders["VertexNormal"], modelMatrix);
+    }
+
+    // tree
+    {
+        for (int i = 0; i < NUM_TREES; i++) {
+            glm::vec3 translateTree;
+            translateTree.x = trees.at(i).x;
+            translateTree.y = 0;
+            translateTree.z = trees.at(i).z;
+
+            glm::mat4 modelMatrix = glm::mat4(1);
+            modelMatrix *= transform3D::Translate(translateTree.x, translateTree.y, translateTree.z);
+
+            RenderMesh(meshes["tree"], shaders["VertexNormal"], modelMatrix);
+        }
     }
 
     // road
     {
         glm::mat4 modelMatrix = glm::mat4(1);
 
-        RenderMesh(meshes["road"], shaders["Color"], modelMatrix);
+        RenderMesh(meshes["road"], shaders["VertexColor"], modelMatrix);
     }
 
-    // sun
-    //{
-    //    glm::mat4 modelMatrix = glm::mat4(1);
-    //    modelMatrix = glm::scale(modelMatrix, glm::vec3(20, 20, 20));
-    //    modelMatrix = glm::translate(modelMatrix, glm::vec3(lightPosition.x, lightPosition.y, lightPosition.z));
+    // grass
+    {
+        glm::mat4 modelMatrix = glm::mat4(1);
+        modelMatrix *= transform3D::Translate(0, -0.1, 0);
 
-    //    RenderMesh(meshes["sphere"], shaders["Simple"], modelMatrix);
-    //}
+        RenderMesh(meshes["grass"], shaders["VertexColor"], modelMatrix);
+    }
+}
+
+void Car_Race::Update(float deltaTimeSeconds)
+{
+    RenderScene();
+    DrawCoordinateSystem(carCamera->GetViewMatrix(), projectionMatrix);
+
+    //DrawCoordinateSystem();
+
+    //glClear(GL_DEPTH_BUFFER_BIT);
+    //glViewport(miniViewportArea.x, miniViewportArea.y, miniViewportArea.width, miniViewportArea.height);
+
+    //// TODO(student): render the scene again, in the new viewport
+    //RenderScene();
+
+    //DrawCoordinateSystem();
 }
 
 
 void Car_Race::FrameEnd()
 {
-    DrawCoordinateSystem(camera->GetViewMatrix(), projectionMatrix);
 }
 
 
@@ -138,7 +183,7 @@ void Car_Race::RenderMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatr
 
     // Render an object using the specified shader and the specified position
     shader->Use();
-    glUniformMatrix4fv(shader->loc_view_matrix, 1, GL_FALSE, glm::value_ptr(camera->GetViewMatrix()));
+    glUniformMatrix4fv(shader->loc_view_matrix, 1, GL_FALSE, glm::value_ptr(carCamera->GetViewMatrix()));
     glUniformMatrix4fv(shader->loc_projection_matrix, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
     glUniformMatrix4fv(shader->loc_model_matrix, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 
@@ -147,22 +192,25 @@ void Car_Race::RenderMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatr
 
 void Car_Race::OnInputUpdate(float deltaTime, int mods)
 {
-    float cameraSpeed = 10.0f;
+    float cameraSpeed = 30.0f;
     float cameraRotation = 1.0f;
 
     // Translate forward
     if (window->KeyHold(GLFW_KEY_W)) {
-        camera->MoveForward(cameraSpeed * deltaTime);
+        carCamera->MoveForward(cameraSpeed * deltaTime);
+        miniMapCamera->MoveForward(cameraSpeed * deltaTime);
     }
 
     // Translate backward
     if (window->KeyHold(GLFW_KEY_S)) {
-        camera->MoveForward(-cameraSpeed * deltaTime);
+        carCamera->MoveForward(-cameraSpeed * deltaTime);
+        miniMapCamera->MoveForward(-cameraSpeed * deltaTime);
     }
 
     // Translate left
     if (window->KeyHold(GLFW_KEY_A)) {
-        camera->RotateThirdPerson_OY(cameraRotation * deltaTime);
+        carCamera->RotateThirdPerson_OY(cameraRotation * deltaTime);
+        miniMapCamera->RotateThirdPerson_OY(cameraRotation * deltaTime);
 
         // Rotate car left
         car.angle += cameraRotation * deltaTime;
@@ -170,7 +218,8 @@ void Car_Race::OnInputUpdate(float deltaTime, int mods)
 
     // Translate right
     if (window->KeyHold(GLFW_KEY_D)) {
-        camera->RotateThirdPerson_OY(-cameraRotation * deltaTime);
+        carCamera->RotateThirdPerson_OY(-cameraRotation * deltaTime);
+        miniMapCamera->RotateThirdPerson_OY(-cameraRotation * deltaTime);
 
         // Rotate car right
         car.angle -= cameraRotation * deltaTime;
@@ -179,11 +228,13 @@ void Car_Race::OnInputUpdate(float deltaTime, int mods)
 
     // TODO : delete translate camera upward and downward
     if (window->KeyHold(GLFW_KEY_Q)) {
-        camera->TranslateUpward(-cameraSpeed * deltaTime);
+        carCamera->TranslateUpward(-cameraSpeed * deltaTime);
+        miniMapCamera->TranslateUpward(-cameraSpeed * deltaTime);
     }
     
     if (window->KeyHold(GLFW_KEY_E)) {
-        camera->TranslateUpward(cameraSpeed * deltaTime);
+        carCamera->TranslateUpward(cameraSpeed * deltaTime);
+        miniMapCamera->TranslateUpward(cameraSpeed * deltaTime);
     }
 }
 
@@ -211,14 +262,14 @@ void Car_Race::OnMouseMove(int mouseX, int mouseY, int deltaX, int deltaY)
 
         if (window->GetSpecialKeyState() == 0) {
             renderCameraTarget = false;
-            camera->RotateFirstPerson_OY(-deltaX * sensivityOX);
-            camera->RotateFirstPerson_OX(-deltaY * sensivityOY);
+            carCamera->RotateFirstPerson_OY(-deltaX * sensivityOX);
+            carCamera->RotateFirstPerson_OX(-deltaY * sensivityOY);
         }
 
         if (window->GetSpecialKeyState() & GLFW_MOD_CONTROL) {
             renderCameraTarget = true;
-            camera->RotateThirdPerson_OY(-deltaX * sensivityOX);
-            camera->RotateThirdPerson_OX(-deltaY * sensivityOY);
+            carCamera->RotateThirdPerson_OY(-deltaX * sensivityOX);
+            carCamera->RotateThirdPerson_OX(-deltaY * sensivityOY);
         }
     }
 }
