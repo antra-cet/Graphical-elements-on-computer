@@ -6,15 +6,32 @@
 #include <iostream>
 #include<cmath>
 
+// CAR DEFINES
+#define CAR_SCALE 1
+#define CAR_FRONT 0.5
+#define CAR_SIDE 1
+#define CAR_MAX_SPEED 40
+#define CAR_STOP 0
+#define CAR_SPEED_INC 0.1
 
-#define CAR_SCALE 0.7
-#define ROAD_DISTANCE 13
+#define CAR_CAMERA_START_X 0
+#define CAR_CAMERA_START_Y 3
+#define CAR_CAMERA_START_Z 6.5f
 
+// ENEMY CAR DEFINES
+#define ENEMY_CARS_NUM 4
+#define ENEMY_CARS_DIST 4
+#define ENEMY_CARS_MOVEMENT 100
+#define ENEMY_CAR_SPACING 0.2
+
+// LANDSCAPE DEFINES
+#define ROAD_WIDTH 13
 #define NUM_TREES 1000
 
-#define LIGHT_POSITION_X 1000
-#define LIGHT_POSITION_Y 1000
-#define LIGHT_POSITION_Z 0
+// MINIMAP DEFINES
+#define MINIMAP_SIZE_X 10
+#define MINIMAP_SIZE_Y 10
+#define MINIMAP_PROP 5
 
 namespace m1
 {
@@ -25,6 +42,8 @@ namespace m1
         struct car {
             glm::vec3 translate;
             float angle;
+
+            float enemyXTranslate, indexPoint, moveX, moveZ;
 
             unsigned int materialShininess;
             float materialKd;
@@ -86,5 +105,28 @@ namespace m1
         }
 
         return 0;
+    }
+
+    inline glm::vec3 getActualTargetPosition(glm::vec3 targetPosition) {
+        return glm::vec3(targetPosition.x - CAR_FRONT, targetPosition.y, targetPosition.z - CAR_FRONT);
+    }
+
+    inline std::vector<Car_Utils::car> getEnemyCars(std::vector<glm::vec3> moveEnemyCarPoints) {
+        std::vector<Car_Utils::car> enemyCars;
+
+        for (int i = 0; i < ENEMY_CARS_NUM; i++) {
+            Car_Utils::car newEnemyCar{};
+            newEnemyCar.indexPoint = rand() % moveEnemyCarPoints.size();
+            newEnemyCar.translate = moveEnemyCarPoints[newEnemyCar.indexPoint];
+
+            int sgn = (rand() % 2 == 0) ? 1 : -1;
+            newEnemyCar.enemyXTranslate = sgn * (rand() % ENEMY_CARS_DIST);
+            newEnemyCar.translate.x += newEnemyCar.enemyXTranslate;
+            newEnemyCar.angle = 0;
+
+            enemyCars.push_back(newEnemyCar);
+        }
+
+        return enemyCars;
     }
 }   // namespace m1

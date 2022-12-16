@@ -25,33 +25,24 @@ namespace m1
         void RenderMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatrix);
 
         void OnInputUpdate(float deltaTime, int mods) override;
-        void OnKeyPress(int key, int mods) override;
-        void OnKeyRelease(int key, int mods) override;
         void OnMouseMove(int mouseX, int mouseY, int deltaX, int deltaY) override;
-        void OnMouseBtnPress(int mouseX, int mouseY, int button, int mods) override;
-        void OnMouseBtnRelease(int mouseX, int mouseY, int button, int mods) override;
-        void OnMouseScroll(int mouseX, int mouseY, int offsetX, int offsetY) override;
-        void OnWindowResize(int width, int height) override;
 
     protected:
+        // Camera
+        implemented::Camera* carCamera;
         glm::mat4 projectionMatrix;
         bool renderCameraTarget;
+        float cameraSpeed = 5.0f;
 
-        float fov;
-        float width;
-        float height;
-
-
-        glm::vec3 lightPosition;
-        unsigned int materialShininess;
-        float materialKd;
-        float materialKs;
-
-
-        // MINE
-        implemented::Camera* carCamera, * miniMapCamera;
-
+        // My car
         Car_Utils::car car;
+
+        // The enemy cars
+        std::vector<Car_Utils::car> enemyCars;
+        std::vector<glm::vec3> moveEnemyCarPoints;
+
+        // The surroundings
+        std::vector<glm::vec3> skelRoadPoints;
         std::vector<glm::vec3> trees;
         std::vector<glm::vec3> roadTriangles;
     };

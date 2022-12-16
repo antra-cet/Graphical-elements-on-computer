@@ -25,11 +25,10 @@ void Car_Race::Init()
 {
     renderCameraTarget = false;
 
+    // Initialize camera
     carCamera = new implemented::Camera();
-    carCamera->Set(glm::vec3(0, 5, 9.5f), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
-
-    miniMapCamera = new implemented::Camera();
-    miniMapCamera->Set(glm::vec3(0, 100, 0), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
+    carCamera->Set(glm::vec3(CAR_CAMERA_START_X, CAR_CAMERA_START_Y, CAR_CAMERA_START_Z),
+        glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
 
     // car
     {
@@ -37,11 +36,11 @@ void Car_Race::Init()
         mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "props"), "audi.mtl.obj");
         meshes[mesh->GetMeshID()] = mesh;
     }
-
-    // sphere
+    
+    // other cars
     {
-        Mesh* mesh = new Mesh("sphere");
-        mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "primitives"), "sphere.obj");
+        Mesh* mesh = new Mesh("enemy");
+        mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "props"), "BMW.obj");
         meshes[mesh->GetMeshID()] = mesh;
     }
 
@@ -64,37 +63,30 @@ void Car_Race::Init()
         meshes[mesh->GetMeshID()] = mesh;
     }
 
-    // Create a shader program for drawing face polygon with the color of the normal
+    // planet
     {
-        Shader* shader = new Shader("CarShader");
-        shader->AddShader(PATH_JOIN(window->props.selfDir, SOURCE_PATH::M1, "Car-Race", "shaders", "VertexShader.glsl"), GL_VERTEX_SHADER);
-        shader->AddShader(PATH_JOIN(window->props.selfDir, SOURCE_PATH::M1, "Car-Race", "shaders", "FragmentShader.glsl"), GL_FRAGMENT_SHADER);
-        shader->CreateAndLink();
-        shaders[shader->GetName()] = shader;
+        Mesh* mesh = new Mesh("planet");
+        mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "props"), "venus.obj");
+        meshes[mesh->GetMeshID()] = mesh;
     }
 
-    // Light & material properties
-    {
-        lightPosition = glm::vec3(0, 1, 1);
-        car.materialShininess = 30;
-        car.materialKd = 0.5;
-        car.materialKs = 0.5;
-    }
-
-    // TODO(student): After you implement the changing of the projection
     // parameters, remove hardcodings of these parameters
     projectionMatrix = glm::perspective(RADIANS(60), window->props.aspectRatio, 0.01f, 200.0f);
-    fov = RADIANS(60);
-    width = 10;
 
+    // Initialize skel track points for the road
+    skelRoadPoints = Car_Shapes::CreateTrackPoints();
 
-
+    // Initialize track points for enemy cars
+    moveEnemyCarPoints = Car_Shapes::CreateEnemyTrackPoints(skelRoadPoints);
 
     // Initialize the triangles of the road
-    roadTriangles = Car_Shapes::CreateTrainglePoints(Car_Shapes::getTrackPoints(), ROAD_DISTANCE);
+    roadTriangles = Car_Shapes::CreateTrainglePoints(skelRoadPoints, ROAD_WIDTH);
 
     // Initialize the tree points
     trees = Car_Shapes::CreateTreePoints(roadTriangles);
+
+    // Initialize enemy car points
+    enemyCars = getEnemyCars(moveEnemyCarPoints);
 
     // Initialize the car's starting point
     car.angle = 0;
@@ -104,12 +96,8 @@ void Car_Race::Init()
 void Car_Race::FrameStart()
 {
     // Clears the color buffer (using the previously set color) and depth buffer
-    glClearColor(0.62, 0.92, 0.9, 1);
+    glClearColor(1, 0.71, 0.45, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glm::ivec2 resolution = window->GetResolution();
-    // Sets the screen area where to draw
-    glViewport(0, 0, resolution.x, resolution.y);
 }
 
 void Car_Race::RenderScene()
@@ -117,7 +105,9 @@ void Car_Race::RenderScene()
     // car
     {
         car.translate = carCamera->GetTargetPosition();
-        car.translate.y -= 1.5;
+
+        // Bring the car on the road
+        car.translate.y -= (CAR_CAMERA_START_Y - 0.5f);
 
         glm::mat4 modelMatrix = glm::mat4(1);
         modelMatrix *= transform3D::Translate(car.translate.x, car.translate.y, car.translate.z);
@@ -125,6 +115,18 @@ void Car_Race::RenderScene()
         modelMatrix *= transform3D::RotateOY(car.angle);
 
         RenderMesh(meshes["car"], shaders["VertexNormal"], modelMatrix);
+    }
+
+    // enemy cars
+    {
+        // Each enemy car will start at a random point on the track
+        for (int i = 0; i < ENEMY_CARS_NUM; i++) {
+            glm::mat4 modelMatrix = glm::mat4(1);
+            modelMatrix *= transform3D::Translate(enemyCars[i].translate.x, enemyCars[i].translate.y, enemyCars[i].translate.z);
+            modelMatrix *= transform3D::RotateOY(enemyCars[i].angle);
+
+            RenderMesh(meshes["enemy"], shaders["VertexNormal"], modelMatrix);
+        }
     }
 
     // tree
@@ -156,22 +158,41 @@ void Car_Race::RenderScene()
 
         RenderMesh(meshes["grass"], shaders["VertexColor"], modelMatrix);
     }
+
+    // planet
+    {
+        glm::mat4 modelMatrix = glm::mat4(1);
+        modelMatrix *= transform3D::Translate(0, 250, -300);
+        modelMatrix *= transform3D::Scale(0.1, 0.1, 0.1);
+
+        RenderMesh(meshes["planet"], shaders["VertexColor"], modelMatrix);
+    }
 }
 
 void Car_Race::Update(float deltaTimeSeconds)
 {
+
+    glm::ivec2 resolution = window->GetResolution();
+
+    // TODO: implement minimap
+    implemented::Camera *auxCamera = new implemented::Camera();
+    auxCamera->Set(carCamera->position, glm::vec3(0, 1, 0), carCamera->up);
+
+    // Draws minimap
+    //carCamera->Set(glm::vec3(0, 50, 0), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
+    
+    // TODO : change proportions and make it work
+    projectionMatrix = glm::ortho((float)((-1) * resolution.x / MINIMAP_PROP) / 2, (float)(resolution.x / MINIMAP_PROP) / 2,
+        (float)((-1) * resolution.y / (4 * MINIMAP_PROP)) / 2, (float)(resolution.y / (4 * MINIMAP_PROP)) / 2, 0.01f, 400.0f);
+    glViewport(MINIMAP_SIZE_X, MINIMAP_SIZE_Y, resolution.x / MINIMAP_PROP, resolution.y / MINIMAP_PROP);
     RenderScene();
-    DrawCoordinateSystem(carCamera->GetViewMatrix(), projectionMatrix);
 
-    //DrawCoordinateSystem();
+    // Draws actual scene
+    //carCamera->Set(auxCamera->position, glm::vec3(0, 1, 0), auxCamera->up);
 
-    //glClear(GL_DEPTH_BUFFER_BIT);
-    //glViewport(miniViewportArea.x, miniViewportArea.y, miniViewportArea.width, miniViewportArea.height);
-
-    //// TODO(student): render the scene again, in the new viewport
-    //RenderScene();
-
-    //DrawCoordinateSystem();
+    projectionMatrix = glm::perspective(RADIANS(60), window->props.aspectRatio, 0.01f, 400.0f);
+    glViewport(0, 0, resolution.x, resolution.y);
+    RenderScene();
 }
 
 
@@ -196,64 +217,152 @@ void Car_Race::RenderMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatr
 
 void Car_Race::OnInputUpdate(float deltaTime, int mods)
 {
-    float cameraSpeed = 30.0f;
     float cameraRotation = 1.0f;
+
+
+    // Move the enemy cars
+    for (int i = 0; i < ENEMY_CARS_NUM; i++) {
+        // Calculate the point the enemy car is approaching to
+        float approachingIndex = ((int)enemyCars[i].indexPoint + 1) % moveEnemyCarPoints.size();
+        float nextApproachingIndex = ((int)approachingIndex + 1) % moveEnemyCarPoints.size();
+
+        glm::vec3 approachingPoint = moveEnemyCarPoints[approachingIndex];
+        glm::vec3 nextApproachingPoint = moveEnemyCarPoints[nextApproachingIndex];
+
+        // Move twoards the next point of the road list
+        enemyCars[i].indexPoint = approachingIndex;
+        enemyCars[i].translate.x = approachingPoint.x;
+        enemyCars[i].translate.z = approachingPoint.z;
+        enemyCars[i].angle = atan2((nextApproachingPoint.z - approachingPoint.z),
+            (nextApproachingPoint.x - approachingPoint.x));
+
+        // TODO : check this if cars collide what will happen
+        //implemented::Camera auxCamera = *carCamera;
+        //glm::vec3 auxTarget = getActualTargetPosition(auxCamera.GetTargetPosition());
+        //if ((auxTarget.x - enemyCars[i].translate.x) <= ENEMY_CAR_SPACING &&
+        //    (auxTarget.z - enemyCars[i].translate.z) <= ENEMY_CAR_SPACING) {
+        //    cameraSpeed -= 3 * CAR_SPEED_INC;
+        //}
+    }
 
     // Translate forward
     if (window->KeyHold(GLFW_KEY_W)) {
-        carCamera->MoveForward(cameraSpeed * deltaTime);
-        miniMapCamera->MoveForward(cameraSpeed * deltaTime);
+
+        // Car increase speed
+        if (cameraSpeed < CAR_MAX_SPEED) {
+            cameraSpeed += CAR_SPEED_INC;
+        }
+
+        // Verify if still on track after movement
+        implemented::Camera auxCamera = *carCamera;
+        auxCamera.MoveForward(cameraSpeed * deltaTime);
+        glm::vec3 auxTarget = getActualTargetPosition(auxCamera.GetTargetPosition());
+
+        if (isOnTrack(auxTarget, roadTriangles)) {
+            carCamera->MoveForward(cameraSpeed * deltaTime);
+        }
+        else {
+            // If it ran off track, decrease the speed to 0
+            cameraSpeed = 0;
+        }
+    } else {
+        // Car decrease speed until stop
+        if (cameraSpeed >= CAR_STOP) {
+            cameraSpeed -= CAR_SPEED_INC;
+        }
+
+        // Verify if still on track after movement
+        implemented::Camera auxCamera = *carCamera;
+        auxCamera.MoveForward(cameraSpeed * deltaTime);
+        glm::vec3 auxTarget = getActualTargetPosition(auxCamera.GetTargetPosition());
+
+        if (isOnTrack(auxTarget, roadTriangles)) {
+            carCamera->MoveForward(cameraSpeed * deltaTime);
+        }
+        else {
+            // If it ran off track, decrease the speed to 0
+            cameraSpeed = 0;
+        }
     }
 
     // Translate backward
     if (window->KeyHold(GLFW_KEY_S)) {
-        carCamera->MoveForward(-cameraSpeed * deltaTime);
-        miniMapCamera->MoveForward(-cameraSpeed * deltaTime);
+        // Car decrease speed if stopped
+        if (cameraSpeed >= (- 1) * CAR_MAX_SPEED) {
+            cameraSpeed -= CAR_SPEED_INC;
+        }
+
+        // Verify if still on track after movement
+        implemented::Camera auxCamera = *carCamera;
+        auxCamera.MoveForward(cameraSpeed * deltaTime);
+        glm::vec3 auxTarget = getActualTargetPosition(auxCamera.GetTargetPosition());
+
+        if (isOnTrack(auxTarget, roadTriangles)) {
+            carCamera->MoveForward(cameraSpeed * deltaTime);
+        }
+        else {
+            // If it ran off track, decrease the speed to 0
+            cameraSpeed = 0;
+        }
+    } else {
+        // Car increase speed until stop
+        if (cameraSpeed <= CAR_STOP) {
+            cameraSpeed += CAR_SPEED_INC;
+        }
+
+        // Verify if still on track after movement
+        implemented::Camera auxCamera = *carCamera;
+        auxCamera.MoveForward(cameraSpeed * deltaTime);
+        glm::vec3 auxTarget = getActualTargetPosition(auxCamera.GetTargetPosition());
+
+        if (isOnTrack(auxTarget, roadTriangles)) {
+            carCamera->MoveForward(cameraSpeed * deltaTime);
+        }
+        else {
+            // If it ran off track, decrease the speed to 0
+            cameraSpeed = 0;
+        }
     }
 
-    // Translate left
+    // Rotate car left
     if (window->KeyHold(GLFW_KEY_A)) {
-        carCamera->RotateThirdPerson_OY(cameraRotation * deltaTime);
-        miniMapCamera->RotateThirdPerson_OY(cameraRotation * deltaTime);
+        // Verify if still on track after movement
+        implemented::Camera auxCamera = *carCamera;
+        auxCamera.RotateThirdPerson_OY(cameraRotation * deltaTime);
+        glm::vec3 auxTarget = getActualTargetPosition(auxCamera.GetTargetPosition());
 
-        // Rotate car left
-        car.angle += cameraRotation * deltaTime;
+        if (isOnTrack(auxTarget, roadTriangles)) {
+            carCamera->RotateThirdPerson_OY(cameraRotation * deltaTime);
+
+            // increase car rotation angle
+            car.angle += cameraRotation * deltaTime;
+        }
     }
 
-    // Translate right
+    // Rotate car rights
     if (window->KeyHold(GLFW_KEY_D)) {
-        carCamera->RotateThirdPerson_OY(-cameraRotation * deltaTime);
-        miniMapCamera->RotateThirdPerson_OY(-cameraRotation * deltaTime);
+        // Verify if still on track after movement
+        implemented::Camera auxCamera = *carCamera;
+        auxCamera.RotateThirdPerson_OY(-cameraRotation * deltaTime);
+        glm::vec3 auxTarget = getActualTargetPosition(auxCamera.GetTargetPosition());
 
-        // Rotate car right
-        car.angle -= cameraRotation * deltaTime;
+        if (isOnTrack(auxTarget, roadTriangles)) {
+            carCamera->RotateThirdPerson_OY(-cameraRotation * deltaTime);
+
+            // decrease car rotation angle
+            car.angle -= cameraRotation * deltaTime;
+        }
     }
-
 
     // TODO : delete translate camera upward and downward
     if (window->KeyHold(GLFW_KEY_Q)) {
-        carCamera->TranslateUpward(-cameraSpeed * deltaTime);
-        miniMapCamera->TranslateUpward(-cameraSpeed * deltaTime);
+        carCamera->TranslateUpward(-10 * deltaTime);
     }
     
     if (window->KeyHold(GLFW_KEY_E)) {
-        carCamera->TranslateUpward(cameraSpeed * deltaTime);
-        miniMapCamera->TranslateUpward(cameraSpeed * deltaTime);
+        carCamera->TranslateUpward(10 * deltaTime);
     }
 }
-
-
-void Car_Race::OnKeyPress(int key, int mods)
-{
-    // Add key press event
-}
-
-
-void Car_Race::OnKeyRelease(int key, int mods)
-{
-    // Add key release event
-}
-
 
 void Car_Race::OnMouseMove(int mouseX, int mouseY, int deltaX, int deltaY)
 {
@@ -276,26 +385,4 @@ void Car_Race::OnMouseMove(int mouseX, int mouseY, int deltaX, int deltaY)
             carCamera->RotateThirdPerson_OX(-deltaY * sensivityOY);
         }
     }
-}
-
-
-void Car_Race::OnMouseBtnPress(int mouseX, int mouseY, int button, int mods)
-{
-    // Add mouse button press event
-}
-
-
-void Car_Race::OnMouseBtnRelease(int mouseX, int mouseY, int button, int mods)
-{
-    // Add mouse button release event
-}
-
-
-void Car_Race::OnMouseScroll(int mouseX, int mouseY, int offsetX, int offsetY)
-{
-}
-
-
-void Car_Race::OnWindowResize(int width, int height)
-{
 }

@@ -2,56 +2,78 @@
 #include "lab_m1/Car-Race/CarUtils.h"
 
 namespace Car_Shapes {
-    inline void CreateMesh(const char* name,
-        const std::vector<VertexFormat>& vertices,
-        const std::vector<unsigned int>& indices,
-        std::unordered_map<std::string, Mesh*>& meshes) {
-
-        unsigned int VAO = 0;
-        // Create the VAO and bind it
-        glGenVertexArrays(1, &VAO);
-        glBindVertexArray(VAO);
-
-        unsigned int VBO = 0;
-        // Create the VBO and bind it
-        glGenBuffers(1, &VBO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-        // Send vertices data into the VBO buffer
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
-
-        unsigned int IBO = 0;
-        // Create the IBO and bind it
-        glGenBuffers(1, &IBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-
-        // Send indices data into the IBO buffer
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), &indices[0], GL_STATIC_DRAW);
-
-        // Unbind the VAO
-        glGenVertexArrays(0, &VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, VAO);
-
-        // Mesh information is saved into a Mesh object
-        meshes[name] = new Mesh(name);
-        meshes[name]->InitFromBuffer(VAO, static_cast<unsigned int>(indices.size()));
-    }
 
     inline Mesh* CreateGrass() {
-
+        // Create grass from multiple triangles so that
+        // shaders apply smoothly
         glm::vec3 grassColor = glm::vec3(0, 0.7, 0.3);
+        std::vector<VertexFormat> vertices;
+        std::vector<unsigned int> indices;
 
-        std::vector<VertexFormat> vertices = {
-            VertexFormat(glm::vec3(400, 0, 400), glm::vec3(1, 0, 0)),
-            VertexFormat(glm::vec3(-400, 0, 400), glm::vec3(0, 1, 0)),
-            VertexFormat(glm::vec3(-400, 0, -400), glm::vec3(0, 0, 1)),
-            VertexFormat(glm::vec3(400, 0, -400), glm::vec3(1, 1, 0))
-        };
+        int inc = 10;
+        int start = -400;
+        int end = 400;
+        float splitFactor = (end - start) / inc + 1;
 
-        std::vector<unsigned int> indices = {
-            0, 1, 3,
-            1, 2, 3
-        };
+        for (int i = start; i <= end; i += inc) {
+            for (int j = start; j <= end; j += inc) {
+                // Choose random color between red, blue, green and yellow
+                glm::vec3 color;
+                int randomColor = rand() % 4;
+                switch (randomColor) {
+                    case 0:
+                        color = glm::vec3(1, 0, 0);
+                        break;
+                    case 1:
+                        color = glm::vec3(0, 1, 0);
+                        break;
+                    case 2:
+                        color = glm::vec3(0, 0, 1);
+                        break;
+                    case 3:
+                        color = glm::vec3(1, 1, 0);
+                        break;
+                    default:
+                        color = glm::vec3(1, 1, 1);
+                        break;
+                }
+
+                // Add the vertex to the vector
+                vertices.push_back(VertexFormat(glm::vec3(i, 0, j), color));
+
+                int iIndice = (i - start) / inc;
+                int jIndice = (j - start) / inc;
+
+                // If adding the first row, then there is no triangle to
+                // add to the indexes vector
+                if (iIndice == 0) {
+                    continue;
+                }
+
+                // If adding the second row of indexes, then start making the
+                // triangles
+
+                // If on the first element of the row, no square can be fromed
+                if (jIndice == 0) {
+                    continue;
+                }
+
+                // Calculate upper and upper right indexes
+                int index = iIndice * splitFactor + jIndice;
+                int leftIndex = iIndice * splitFactor + (jIndice - 1);
+                int upperIndex = (iIndice - 1) * splitFactor + jIndice;
+                int upperLeftIndex = (iIndice - 1) * splitFactor + (jIndice - 1);
+
+                // Add the two triangles
+                indices.push_back(leftIndex);
+                indices.push_back(upperLeftIndex);
+                indices.push_back(upperIndex);
+
+                indices.push_back(leftIndex);
+                indices.push_back(upperIndex);
+                indices.push_back(index);
+            }
+        }
 
         Mesh* mesh = new Mesh("grass");
         mesh->InitFromData(vertices, indices);
@@ -60,7 +82,7 @@ namespace Car_Shapes {
     }
 
 
-    inline std::vector<glm::vec3> getTrackPoints() {
+    inline std::vector<glm::vec3> CreateTrackPoints() {
         std::vector<glm::vec3> skelPoints = {
         glm::vec3(0, 0, 0), // A
         glm::vec3(0, 0, 22.0368), // F2
@@ -124,6 +146,29 @@ namespace Car_Shapes {
         };
 
         return skelPoints;
+    }
+
+    inline std::vector<glm::vec3> CreateEnemyTrackPoints(std::vector<glm::vec3> skelPoints) {
+        std::vector<glm::vec3> enemyCarPoints;
+
+        for (int i = 0; i < skelPoints.size(); i++) {
+            glm::vec3 currPoint, nextPoint;
+            currPoint = skelPoints[i];
+            nextPoint = skelPoints[(i + 1) % skelPoints.size()];
+
+            enemyCarPoints.push_back(currPoint);
+            for (int j = 0; j < ENEMY_CARS_MOVEMENT; j++) {
+                glm::vec3 point;
+
+                point.x = currPoint.x + (nextPoint.x - currPoint.x) * j / ENEMY_CARS_MOVEMENT;
+                point.y = 0;
+                point.z = currPoint.z + (nextPoint.z - currPoint.z) * j / ENEMY_CARS_MOVEMENT;
+
+                enemyCarPoints.push_back(point);
+            }
+        }
+
+        return enemyCarPoints;
     }
 
     inline std::vector<glm::vec3> CreateTrainglePoints(std::vector<glm::vec3> skelPoints, float distance) {
@@ -267,9 +312,9 @@ namespace Car_Shapes {
         glm::vec3 normal = glm::vec3(1, 1, 1);
         glm::vec3 roadColor = glm::vec3(0.8, 0.8, 0.8);
 
-        std::vector<glm::vec3> skelPoints = getTrackPoints();
-        std::vector<VertexFormat> vertices = CreateRoadVertices(skelPoints, ROAD_DISTANCE, roadColor);
-        std::vector<unsigned int> indices = CreateRoadIndices(skelPoints, ROAD_DISTANCE);
+        std::vector<glm::vec3> skelPoints = CreateTrackPoints();
+        std::vector<VertexFormat> vertices = CreateRoadVertices(skelPoints, ROAD_WIDTH, roadColor);
+        std::vector<unsigned int> indices = CreateRoadIndices(skelPoints, ROAD_WIDTH);
 
         Mesh* mesh = new Mesh("road");
         mesh->InitFromData(vertices, indices);
