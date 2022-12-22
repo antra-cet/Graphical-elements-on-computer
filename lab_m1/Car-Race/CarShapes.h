@@ -3,7 +3,63 @@
 
 namespace Car_Shapes {
 
-    inline Mesh* CreateGrass() {
+
+    inline Mesh* CreateMesh(const char* name, const std::vector<VertexFormat>& vertices, const std::vector<unsigned int>& indices,
+        std::unordered_map<std::string, Mesh*> &meshes)
+    {
+        unsigned int VAO = 0;
+        // Create the VAO and bind it
+        glGenVertexArrays(1, &VAO);
+        glBindVertexArray(VAO);
+
+        // Create the VBO and bind it
+        unsigned int VBO;
+        glGenBuffers(1, &VBO);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+        // Send vertices data into the VBO buffer
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
+
+        // Create the IBO and bind it
+        unsigned int IBO;
+        glGenBuffers(1, &IBO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+
+        // Send indices data into the IBO buffer
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), &indices[0], GL_STATIC_DRAW);
+
+        // Set vertex position attribute
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexFormat), 0);
+
+        // Set vertex normal attribute
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexFormat), (void*)(sizeof(glm::vec3)));
+
+        // Set texture coordinate attribute
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VertexFormat), (void*)(2 * sizeof(glm::vec3)));
+
+        // Set vertex color attribute
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(VertexFormat), (void*)(2 * sizeof(glm::vec3) + sizeof(glm::vec2)));
+        // ========================================================================
+
+        // Unbind the VAO
+        glBindVertexArray(0);
+
+        // Check for OpenGL errors
+        CheckOpenGLError();
+
+        // Mesh information is saved into a Mesh object
+        meshes[name] = new Mesh(name);
+        meshes[name]->InitFromBuffer(VAO, static_cast<unsigned int>(indices.size()));
+        meshes[name]->vertices = vertices;
+        meshes[name]->indices = indices;
+        return meshes[name];
+    }
+
+    inline void CreateGrass(std::unordered_map<std::string, Mesh*> &meshes) {
         // Create grass from multiple triangles so that
         // shaders apply smoothly
         glm::vec3 grassColor = glm::vec3(0, 0.7, 0.3);
@@ -75,10 +131,7 @@ namespace Car_Shapes {
             }
         }
 
-        Mesh* mesh = new Mesh("grass");
-        mesh->InitFromData(vertices, indices);
-
-        return mesh;
+        CreateMesh("grass", vertices, indices, meshes);
     }
 
 
@@ -308,7 +361,8 @@ namespace Car_Shapes {
         return indices;
     }
 
-    inline Mesh *CreateRoad() {
+    inline void 
+        CreateRoad(std::unordered_map<std::string, Mesh*> &meshes) {
         glm::vec3 normal = glm::vec3(1, 1, 1);
         glm::vec3 roadColor = glm::vec3(0.8, 0.8, 0.8);
 
@@ -316,10 +370,7 @@ namespace Car_Shapes {
         std::vector<VertexFormat> vertices = CreateRoadVertices(skelPoints, ROAD_WIDTH, roadColor);
         std::vector<unsigned int> indices = CreateRoadIndices(skelPoints, ROAD_WIDTH);
 
-        Mesh* mesh = new Mesh("road");
-        mesh->InitFromData(vertices, indices);
-
-        return mesh;
+        CreateMesh("road", vertices, indices, meshes);
 	}
 
     inline std::vector<glm::vec3> CreateTreePoints(std::vector<glm::vec3> roadTriangles) {

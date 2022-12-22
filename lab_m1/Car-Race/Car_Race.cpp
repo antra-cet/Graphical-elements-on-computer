@@ -46,14 +46,12 @@ void Car_Race::Init()
 
     // road
     {
-        Mesh *mesh = Car_Shapes::CreateRoad();
-        meshes[mesh->GetMeshID()] = mesh;
+        Car_Shapes::CreateRoad(meshes);
     }
 
     // earth
     {
-        Mesh* mesh = Car_Shapes::CreateGrass();
-        meshes[mesh->GetMeshID()] = mesh;
+        Car_Shapes::CreateGrass(meshes);
     }
 
     // tree
@@ -68,6 +66,24 @@ void Car_Race::Init()
         Mesh* mesh = new Mesh("planet");
         mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "props"), "venus.obj");
         meshes[mesh->GetMeshID()] = mesh;
+    }
+
+    // Create a shader program for drawing face polygon with the color of the normal
+    {
+        Shader* shader = new Shader("GalacticCarShader");
+        shader->AddShader(PATH_JOIN(window->props.selfDir, SOURCE_PATH::M1, "Car-Race", "shaders", "VertexShader.glsl"), GL_VERTEX_SHADER);
+        shader->AddShader(PATH_JOIN(window->props.selfDir, SOURCE_PATH::M1, "Car-Race", "shaders", "FragmentShader.glsl"), GL_FRAGMENT_SHADER);
+        shader->CreateAndLink();
+        shaders[shader->GetName()] = shader;
+    }
+
+    // Create a shader program for drawing face polygon with the color of the normal
+    {
+        Shader* shader = new Shader("GalacticCarShaderImports");
+        shader->AddShader(PATH_JOIN(window->props.selfDir, SOURCE_PATH::M1, "Car-Race", "shaders", "VertexShader.glsl"), GL_VERTEX_SHADER);
+        shader->AddShader(PATH_JOIN(window->props.selfDir, SOURCE_PATH::M1, "Car-Race", "shaders", "FragmentShaderObjects.glsl"), GL_FRAGMENT_SHADER);
+        shader->CreateAndLink();
+        shaders[shader->GetName()] = shader;
     }
 
     // parameters, remove hardcodings of these parameters
@@ -100,6 +116,7 @@ void Car_Race::FrameStart()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
+
 void Car_Race::RenderScene()
 {
     // car
@@ -107,14 +124,14 @@ void Car_Race::RenderScene()
         car.translate = carCamera->GetTargetPosition();
 
         // Bring the car on the road
-        car.translate.y -= (CAR_CAMERA_START_Y - 0.5f);
+        car.translate.y -= 1.5;
 
         glm::mat4 modelMatrix = glm::mat4(1);
         modelMatrix *= transform3D::Translate(car.translate.x, car.translate.y, car.translate.z);
         modelMatrix *= transform3D::Scale(CAR_SCALE, CAR_SCALE, CAR_SCALE);
         modelMatrix *= transform3D::RotateOY(car.angle);
 
-        RenderMesh(meshes["car"], shaders["VertexNormal"], modelMatrix);
+        RenderMesh(meshes["car"], shaders["GalacticCarShaderImports"], modelMatrix);
     }
 
     // enemy cars
@@ -125,7 +142,7 @@ void Car_Race::RenderScene()
             modelMatrix *= transform3D::Translate(enemyCars[i].translate.x, enemyCars[i].translate.y, enemyCars[i].translate.z);
             modelMatrix *= transform3D::RotateOY(enemyCars[i].angle);
 
-            RenderMesh(meshes["enemy"], shaders["VertexNormal"], modelMatrix);
+            RenderMesh(meshes["enemy"], shaders["GalacticCarShaderImports"], modelMatrix);
         }
     }
 
@@ -140,15 +157,18 @@ void Car_Race::RenderScene()
             glm::mat4 modelMatrix = glm::mat4(1);
             modelMatrix *= transform3D::Translate(translateTree.x, translateTree.y, translateTree.z);
 
-            RenderMesh(meshes["tree"], shaders["VertexNormal"], modelMatrix);
+            RenderMesh(meshes["tree"], shaders["GalacticCarShaderImports"], modelMatrix);
         }
     }
 
     // road
     {
-        glm::mat4 modelMatrix = glm::mat4(1);
+        for (int i = 0; i < 1000; i++) {
+            glm::mat4 modelMatrix = glm::mat4(1);
+            modelMatrix *= transform3D::Translate(0, 0.001 * i, 0);
 
-        RenderMesh(meshes["road"], shaders["VertexColor"], modelMatrix);
+            RenderMesh(meshes["road"], shaders["GalacticCarShader"], modelMatrix);
+        }
     }
 
     // grass
@@ -156,7 +176,7 @@ void Car_Race::RenderScene()
         glm::mat4 modelMatrix = glm::mat4(1);
         modelMatrix *= transform3D::Translate(0, -0.1, 0);
 
-        RenderMesh(meshes["grass"], shaders["VertexColor"], modelMatrix);
+        RenderMesh(meshes["grass"], shaders["GalacticCarShader"], modelMatrix);
     }
 
     // planet
@@ -174,25 +194,33 @@ void Car_Race::Update(float deltaTimeSeconds)
 
     glm::ivec2 resolution = window->GetResolution();
 
-    // TODO: implement minimap
-    implemented::Camera *auxCamera = new implemented::Camera();
-    auxCamera->Set(carCamera->position, glm::vec3(0, 1, 0), carCamera->up);
+    // Draws map
+    projectionMatrix = glm::perspective(RADIANS(60), window->props.aspectRatio, 0.01f, 400.0f);
+    glViewport(0, 0, resolution.x, resolution.y);
+    RenderScene();
 
-    // Draws minimap
-    //carCamera->Set(glm::vec3(0, 50, 0), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
+    // Gets a copy of the car elements
+    implemented::Camera auxCamera;
+    auxCamera.forward = carCamera->forward;
+    auxCamera.position = carCamera->position;
+    auxCamera.up = carCamera->up;
+    auxCamera.right = carCamera->right;
+    auxCamera.distanceToTarget = carCamera->distanceToTarget;
     
-    // TODO : change proportions and make it work
+    // Draws minimap
+    car.translate = carCamera->GetTargetPosition();
+    carCamera->Set(glm::vec3(car.translate.x, 50.0f, car.translate.z), glm::vec3(car.translate.x, 0, car.translate.z), glm::vec3(0, 1, 0));
     projectionMatrix = glm::ortho((float)((-1) * resolution.x / MINIMAP_PROP) / 2, (float)(resolution.x / MINIMAP_PROP) / 2,
         (float)((-1) * resolution.y / (4 * MINIMAP_PROP)) / 2, (float)(resolution.y / (4 * MINIMAP_PROP)) / 2, 0.01f, 400.0f);
     glViewport(MINIMAP_SIZE_X, MINIMAP_SIZE_Y, resolution.x / MINIMAP_PROP, resolution.y / MINIMAP_PROP);
     RenderScene();
 
-    // Draws actual scene
-    //carCamera->Set(auxCamera->position, glm::vec3(0, 1, 0), auxCamera->up);
-
-    projectionMatrix = glm::perspective(RADIANS(60), window->props.aspectRatio, 0.01f, 400.0f);
-    glViewport(0, 0, resolution.x, resolution.y);
-    RenderScene();
+    // Resets car camera
+    carCamera->forward = auxCamera.forward;
+    carCamera->position = auxCamera.position;
+    carCamera->up = auxCamera.up;
+    carCamera->right = auxCamera.right;
+    carCamera->distanceToTarget = auxCamera.distanceToTarget;
 }
 
 
@@ -211,6 +239,8 @@ void Car_Race::RenderMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatr
     glUniformMatrix4fv(shader->loc_view_matrix, 1, GL_FALSE, glm::value_ptr(carCamera->GetViewMatrix()));
     glUniformMatrix4fv(shader->loc_projection_matrix, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
     glUniformMatrix4fv(shader->loc_model_matrix, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+    int location = glGetUniformLocation(shader->program, "car_translate");
+    glUniform3fv(location, 1, glm::value_ptr(carCamera->GetTargetPosition()));
 
     mesh->Render();
 }
@@ -219,30 +249,30 @@ void Car_Race::OnInputUpdate(float deltaTime, int mods)
 {
     float cameraRotation = 1.0f;
 
+    // Move the enemy cars x position at a time
+    for (int pos = 0; pos < 20; pos++) {
+        for (int i = 0; i < ENEMY_CARS_NUM; i++) {
+            // Calculate the point the enemy car is approaching to
+            float approachingIndex = ((int)enemyCars[i].indexPoint + 1) % moveEnemyCarPoints.size();
+            float nextApproachingIndex = ((int)approachingIndex + 1) % moveEnemyCarPoints.size();
 
-    // Move the enemy cars
-    for (int i = 0; i < ENEMY_CARS_NUM; i++) {
-        // Calculate the point the enemy car is approaching to
-        float approachingIndex = ((int)enemyCars[i].indexPoint + 1) % moveEnemyCarPoints.size();
-        float nextApproachingIndex = ((int)approachingIndex + 1) % moveEnemyCarPoints.size();
+            glm::vec3 approachingPoint = moveEnemyCarPoints[approachingIndex];
+            glm::vec3 nextApproachingPoint = moveEnemyCarPoints[nextApproachingIndex];
 
-        glm::vec3 approachingPoint = moveEnemyCarPoints[approachingIndex];
-        glm::vec3 nextApproachingPoint = moveEnemyCarPoints[nextApproachingIndex];
+            // Move twoards the next point of the road list
+            enemyCars[i].indexPoint = approachingIndex;
+            enemyCars[i].translate.x = approachingPoint.x;
+            enemyCars[i].translate.z = approachingPoint.z;
+            enemyCars[i].angle = atan2((nextApproachingPoint.z - approachingPoint.z),
+                (nextApproachingPoint.x - approachingPoint.x));
 
-        // Move twoards the next point of the road list
-        enemyCars[i].indexPoint = approachingIndex;
-        enemyCars[i].translate.x = approachingPoint.x;
-        enemyCars[i].translate.z = approachingPoint.z;
-        enemyCars[i].angle = atan2((nextApproachingPoint.z - approachingPoint.z),
-            (nextApproachingPoint.x - approachingPoint.x));
-
-        // TODO : check this if cars collide what will happen
-        //implemented::Camera auxCamera = *carCamera;
-        //glm::vec3 auxTarget = getActualTargetPosition(auxCamera.GetTargetPosition());
-        //if ((auxTarget.x - enemyCars[i].translate.x) <= ENEMY_CAR_SPACING &&
-        //    (auxTarget.z - enemyCars[i].translate.z) <= ENEMY_CAR_SPACING) {
-        //    cameraSpeed -= 3 * CAR_SPEED_INC;
-        //}
+            //implemented::Camera auxCamera = *carCamera;
+            //glm::vec3 auxTarget = getActualTargetPosition(auxCamera.GetTargetPosition());
+            //if ((auxTarget.x - enemyCars[i].translate.x) <= ENEMY_CAR_SPACING &&
+            //    (auxTarget.z - enemyCars[i].translate.z) <= ENEMY_CAR_SPACING) {
+            //    cameraSpeed -= 3 * CAR_SPEED_INC;
+            //}
+        }
     }
 
     // Translate forward

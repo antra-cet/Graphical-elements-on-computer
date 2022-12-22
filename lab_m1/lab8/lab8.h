@@ -8,18 +8,18 @@ namespace m1
 {
     class Lab8 : public gfxc::SimpleScene
     {
-     public:
+    public:
         Lab8();
         ~Lab8();
 
         void Init() override;
 
-     private:
+    private:
         void FrameStart() override;
         void Update(float deltaTimeSeconds) override;
         void FrameEnd() override;
 
-        void RenderSimpleMesh(Mesh *mesh, Shader *shader, const glm::mat4 &modelMatrix, const glm::vec3 &color = glm::vec3(1));
+        void RenderSimpleMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatrix, const glm::vec3& color = glm::vec3(1));
 
         void OnInputUpdate(float deltaTime, int mods) override;
         void OnKeyPress(int key, int mods) override;
@@ -30,11 +30,15 @@ namespace m1
         void OnMouseScroll(int mouseX, int mouseY, int offsetX, int offsetY) override;
         void OnWindowResize(int width, int height) override;
 
-        glm::vec3 lightPosition;
-        glm::vec3 lightDirection;
+        glm::vec3 lightPosition[2];
+        glm::vec3 lightDirection[2];
         unsigned int materialShininess;
         float materialKd;
         float materialKs;
+        int typeOfLight;
+        float angleOX, angleOY;
+        float cutoffAngle;
+        int light_mode;
 
         // TODO(student): If you need any other class variables, define them here.
 
