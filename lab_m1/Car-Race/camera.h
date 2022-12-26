@@ -23,6 +23,14 @@ namespace implemented
             Set(position, center, up);
         }
 
+        Camera(float distanceToTarget, glm::vec3 position, glm::vec3 forward, glm::vec3 right, glm::vec3 up) {
+            this->distanceToTarget = distanceToTarget;
+            this->position = position;
+            this->forward = forward;
+            this->right = right;
+            this->up = up;
+        }
+
         ~Camera()
         { }
 

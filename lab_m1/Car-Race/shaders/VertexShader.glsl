@@ -28,7 +28,7 @@ void main()
 
     vec4 pos = Model * vec4(v_position, 1.0);
     vec3 Posv = vec3(pos.x, pos.y, pos.z);
-    float Posvy = Posv.y - length(car_translate - Posv) * length(car_translate - Posv) * 0.00015f;
+    float Posvy = Posv.y - length(car_translate - Posv) * length(car_translate - Posv) * 0.00019f;
  
     gl_Position = Projection * View * vec4(Posv.x, Posvy, Posv.z, 1.0);
 }
